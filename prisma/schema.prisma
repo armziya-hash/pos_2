@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id               String            @id @default(cuid())
+  name             String
+  email            String            @unique
+  password         String            // Hashed via bcrypt
+  role             String            @default("CASHIER") // ADMIN, CASHIER
+  activeSessionId  String?           // Prevent multi-login
+  status           String            @default("ACTIVE") // ACTIVE, DISABLED
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  Transaction      Transaction[] 
+}
+
+model Store {
+  id               String            @id @default(cuid())
+  name             String
+  location         String
+  currencySymbol   String            @default("LKR")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  Category         Category[]
+}
+
+model Category {
+  id               String            @id @default(cuid())
+  name             String
+  storeId          String?
+  store            Store?            @relation(fields: [storeId], references: [id])
+  products         Product[]
+}
+
+model Supplier {
+  id               String            @id @default(cuid())
+  name             String
+  contact          String?
+  address          String?
+  products         Product[]
+  Purchase         Purchase[]
+}
+
+model Product {
+  id               String            @id @default(cuid())
+  barcode          String?           @unique
+  name             String
+  categoryId       String?
+  supplierId       String?
+  costPrice        Float             @default(0.0)
+  sellingPrice     Float             @default(0.0)
+  stockQuantity    Int               @default(0)
+  expirationDate   DateTime?
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  supplier         Supplier?         @relation(fields: [supplierId], references: [id])
+  transactionItems TransactionItem[]
+  purchaseItems    PurchaseItem[]
+}
+
+model Customer {
+  id               String            @id @default(cuid())
+  name             String
+  phone            String?           @unique
+  loyaltyPoints    Float             @default(0.0)
+  transactions     Transaction[]
+}
+
+// Sales transactions
+model Transaction {
+  id               String            @id @default(cuid())
+  invoiceNumber    String            @unique
+  userId           String
+  customerId       String?
+  totalAmount      Float
+  discount         Float             @default(0.0)
+  date             DateTime          @default(now())
+  user             User              @relation(fields: [userId], references: [id])
+  customer         Customer?         @relation(fields: [customerId], references: [id])
+  items            TransactionItem[]
+  ledgerEntries    LedgerEntry[]
+}
+
+model TransactionItem {
+  id               String            @id @default(cuid())
+  transactionId    String
+  productId        String
+  quantity         Int
+  priceAtSale      Float
+  transaction      Transaction       @relation(fields: [transactionId], references: [id])
+  product          Product           @relation(fields: [productId], references: [id])
+}
+
+// Purchases from suppliers (Stock in)
+model Purchase {
+  id               String            @id @default(cuid())
+  date             DateTime          @default(now())
+  supplierId       String?
+  totalAmount      Float
+  supplier         Supplier?         @relation(fields: [supplierId], references: [id])
+  items            PurchaseItem[]
+  ledgerEntries    LedgerEntry[]
+}
+
+model PurchaseItem {
+  id               String            @id @default(cuid())
+  purchaseId       String
+  productId        String
+  quantity         Int
+  costPrice        Float
+  purchase         Purchase          @relation(fields: [purchaseId], references: [id])
+  product          Product           @relation(fields: [productId], references: [id])
+}
+
+// Ledger Engine (Accounting)
+model LedgerEntry {
+  id               String            @id @default(cuid())
+  date             DateTime          @default(now())
+  type             String            // INCOME (Sales), EXPENSE (Purchase), DEBIT_NOTE, CREDIT_NOTE
+  amount           Float
+  description      String?
+  transactionId    String?           
+  purchaseId       String?           
+  transaction      Transaction?      @relation(fields: [transactionId], references: [id])
+  purchase         Purchase?         @relation(fields: [purchaseId], references: [id])
+}
