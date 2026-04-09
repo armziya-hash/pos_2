@@ -131,3 +131,8 @@ model LedgerEntry {
   transaction      Transaction?      @relation(fields: [transactionId], references: [id])
   purchase         Purchase?         @relation(fields: [purchaseId], references: [id])
 }
+
+generator client {
+  provider = "prisma-client-js"
+  // No output line here
+}
